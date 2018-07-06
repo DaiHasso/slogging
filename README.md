@@ -18,6 +18,7 @@ newLogger := slogging.GetNewLogger(
     slogging.JSON,
     slogging.Stdout,
     []slogging.LogLevel{slogging.ERROR},
+)
 ```
 
 ### Logging formats
