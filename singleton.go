@@ -6,7 +6,8 @@ var allLoggers = make(map[string]Logger)
 
 var defaultLoggerName = "default"
 
-func getDefaultLogger() Logger {
+// GetDefaultLogger gets the default logger.
+func GetDefaultLogger() Logger {
 	if logger, ok := allLoggers[defaultLoggerName]; ok {
 		return logger
 	}
