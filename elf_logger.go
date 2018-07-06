@@ -65,9 +65,8 @@ func (el *ELFLogger) GetPseudoWriter(logLevel LogLevel) PseudoWriter {
 	}
 }
 
-// SetPretty will set the pretty-print setting.
-func (el *ELFLogger) SetPretty(pretty bool) {
-}
+// SetPretty has no effect on an ELFLogger.
+func (el *ELFLogger) SetPretty(pretty bool) {}
 
 // GetStdLogger returns a std library logger that uses
 // a PseudoWriter.
@@ -79,7 +78,7 @@ func (el *ELFLogger) GetStdLogger(logLevel LogLevel) *log.Logger {
 	)
 }
 
-// GetElfLogger will instantiate a new ELF logger writing to the specified log
+// GetELFLogger will instantiate a new ELF logger writing to the specified log
 // target and with the specified log levels enabled.
 func GetELFLogger(
 	logTarget LogTarget,
