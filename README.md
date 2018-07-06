@@ -62,6 +62,45 @@ slogging.Info("HTTP request made.").
 
 **Output:**
 ``` json
-{"message":"HTTP request made","log_level":"INFO","timestamp":1530763651,"path":
-"/test","requestor":"127.0.0.1","method":"GET"}
+{"message":"HTTP request made","log_level":"INFO","timestamp":1530763651,
+ "path":"/test","requestor":"127.0.0.1","method":"GET"}
+```
+
+
+### Plugging into existing frameworks
+In order to get a go std logger just use the `GetStdLogger` function to get back
+a wrapper around a logger that will log to your logger at the specified logging
+level.
+``` go
+stdLogger := myLogger.GetStdLogger(logging.ERROR)
+```
+
+### Prettifying your JSON logs
+In order to have your logs look pretty you can use the `SetPretty` function on
+your logger. (Pretty has no effect on an ELF logger)
+
+#### Pretty off (default):
+**Code:**
+``` go
+myLogger.SetPretty(false)
+```
+
+**Output:**
+``` json
+{"message":"HTTP request made","log_level":"INFO","timestamp":1530763651}
+```
+
+#### Pretty on:
+**Code:**
+``` go
+myLogger.SetPretty(true)
+```
+
+**Output:**
+``` json
+{
+    "message": "HTTP request made",
+    "log_level": "INFO",
+    "timestamp":1530763651
+}
 ```
