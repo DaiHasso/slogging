@@ -9,7 +9,7 @@ import (
 type defaultValues struct {
 	Message   string    `json:"message"`
 	Level     LogLevel  `json:"log_level"`
-	Timestamp Timestamp `json:"timestamp"`
+	Timestamp timestamp `json:"timestamp"`
 }
 
 // JSONLog is an instance of a JSON log entry.
@@ -87,7 +87,7 @@ func getJSONLog(
 		defaults: defaultValues{
 			Message: message,
 			Level:   level,
-			Timestamp: Timestamp{
+			Timestamp: timestamp{
 				Time: time.Now(),
 			},
 		},

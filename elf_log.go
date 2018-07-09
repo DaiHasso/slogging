@@ -95,7 +95,7 @@ func getELFLog(
 		defaults: defaultValues{
 			Message: message,
 			Level:   level,
-			Timestamp: Timestamp{
+			Timestamp: timestamp{
 				Time: time.Now(),
 			},
 		},
