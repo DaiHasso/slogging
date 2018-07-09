@@ -25,8 +25,8 @@ type ELFLog struct {
 }
 
 // SetTimestamp overrides timestamp, mostly used for testing.
-func (el *ELFLog) SetTimestamp(newTime Timestamp) LogInstance {
-	el.defaults.Timestamp = newTime
+func (el *ELFLog) SetTimestamp(newTime time.Time) LogInstance {
+	el.defaults.Timestamp = timestamp{newTime}
 	return el
 }
 

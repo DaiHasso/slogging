@@ -43,8 +43,8 @@ func (jl JSONLog) MarshalJSON() ([]byte, error) {
 }
 
 // SetTimestamp overrides timestamp, mostly used for testing.
-func (jl *JSONLog) SetTimestamp(newTime Timestamp) LogInstance {
-	jl.defaults.Timestamp = newTime
+func (jl *JSONLog) SetTimestamp(newTime time.Time) LogInstance {
+	jl.defaults.Timestamp = timestamp{newTime}
 	return jl
 }
 
