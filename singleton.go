@@ -45,28 +45,28 @@ func SetDefaultLoggerName(identifier string) {
 
 // Debug uses the default logger to log to debug level.
 func Debug(message string) LogInstance {
-	logger := getDefaultLogger()
+	logger := GetDefaultLogger()
 
 	return logger.Debug(message)
 }
 
 // Warn uses the default logger to log to warn level.
 func Warn(message string) LogInstance {
-	logger := getDefaultLogger()
+	logger := GetDefaultLogger()
 
 	return logger.Warn(message)
 }
 
 // Error uses the default logger to log to error level.
 func Error(message string) LogInstance {
-	logger := getDefaultLogger()
+	logger := GetDefaultLogger()
 
 	return logger.Error(message)
 }
 
 // Info uses the default logger to log to info level.
 func Info(message string) LogInstance {
-	logger := getDefaultLogger()
+	logger := GetDefaultLogger()
 
 	return logger.Info(message)
 }
