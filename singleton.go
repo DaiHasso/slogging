@@ -1,16 +1,22 @@
 package slogging
 
-import "os"
+import (
+	"os"
+	"sync"
+)
 
+var loggersRWMutex = new(sync.RWMutex)
 var allLoggers = make(map[string]Logger)
 
 var defaultLoggerName = "default"
 
 // GetDefaultLogger gets the default logger.
 func GetDefaultLogger() Logger {
+	loggersRWMutex.RLock()
 	if logger, ok := allLoggers[defaultLoggerName]; ok {
 		return logger
 	}
+	loggersRWMutex.RUnlock()
 
 	logLevel := os.Getenv("SLOGGING_DEFAULT_LOG_LEVEL")
 	if logLevel == "" {
@@ -27,12 +33,18 @@ func GetDefaultLogger() Logger {
 		logLevels,
 	)
 
+	loggersRWMutex.Lock()
+	allLoggers[defaultLoggerName] = &logger
+	loggersRWMutex.Unlock()
+
 	return &logger
 }
 
 // SetDefaultLogger will use the provided identifier as the default
 // logger for future log calls.
 func SetDefaultLogger(identifier string, logger Logger) {
+	loggersRWMutex.Lock()
+	defer loggersRWMutex.Unlock()
 	defaultLoggerName = identifier
 	allLoggers[identifier] = logger
 }
@@ -40,6 +52,8 @@ func SetDefaultLogger(identifier string, logger Logger) {
 // SetDefaultLoggerName will use the provided identifier as the default
 // logger for future log calls.
 func SetDefaultLoggerName(identifier string) {
+	loggersRWMutex.Lock()
+	defer loggersRWMutex.Unlock()
 	defaultLoggerName = identifier
 }
 
@@ -47,6 +61,8 @@ func SetDefaultLoggerName(identifier string) {
 func Debug(message string) LogInstance {
 	logger := GetDefaultLogger()
 
+	loggersRWMutex.RLock()
+	defer loggersRWMutex.RUnlock()
 	return logger.Debug(message)
 }
 
@@ -54,6 +70,8 @@ func Debug(message string) LogInstance {
 func Warn(message string) LogInstance {
 	logger := GetDefaultLogger()
 
+	loggersRWMutex.RLock()
+	defer loggersRWMutex.RUnlock()
 	return logger.Warn(message)
 }
 
@@ -61,6 +79,8 @@ func Warn(message string) LogInstance {
 func Error(message string) LogInstance {
 	logger := GetDefaultLogger()
 
+	loggersRWMutex.RLock()
+	defer loggersRWMutex.RUnlock()
 	return logger.Error(message)
 }
 
@@ -68,5 +88,7 @@ func Error(message string) LogInstance {
 func Info(message string) LogInstance {
 	logger := GetDefaultLogger()
 
+	loggersRWMutex.RLock()
+	defer loggersRWMutex.RUnlock()
 	return logger.Info(message)
 }
