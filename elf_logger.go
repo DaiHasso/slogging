@@ -83,7 +83,7 @@ func (el *ELFLogger) GetStdLogger(logLevel LogLevel) *log.Logger {
 func GetELFLogger(
 	logTarget LogTarget,
 	logsEnabled []LogLevel,
-) ELFLogger {
+) *ELFLogger {
 	var logger *log.Logger
 
 	if logTarget == Stdout {
@@ -95,7 +95,7 @@ func GetELFLogger(
 		logsEnabledMap[level] = true
 	}
 
-	newLogger := ELFLogger{
+	newLogger := &ELFLogger{
 		logger:      logger,
 		logTarget:   logTarget,
 		logsEnabled: logsEnabledMap,

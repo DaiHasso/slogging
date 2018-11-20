@@ -87,7 +87,7 @@ func (jl *JSONLogger) GetStdLogger(logLevel LogLevel) *log.Logger {
 func GetJSONLogger(
 	logTarget LogTarget,
 	logsEnabled []LogLevel,
-) JSONLogger {
+) *JSONLogger {
 	var logger *log.Logger
 
 	if logTarget == Stdout {
@@ -99,7 +99,7 @@ func GetJSONLogger(
 		logsEnabledMap[level] = true
 	}
 
-	newLogger := JSONLogger{
+	newLogger := &JSONLogger{
 		logger:      logger,
 		logTarget:   logTarget,
 		logsEnabled: logsEnabledMap,

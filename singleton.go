@@ -1,43 +1,27 @@
 package slogging
 
 import (
+	"fmt"
 	"os"
 	"sync"
+	"strings"
 )
 
-var loggersRWMutex = new(sync.RWMutex)
-var allLoggers = make(map[string]Logger)
+var once sync.Once
 
-var defaultLoggerName = "default"
+var loggersRWMutex *sync.RWMutex
+var allLoggers *map[string]Logger
+
+var initialDefaultLoggerName = "default"
+var defaultLoggerName *string
 
 // GetDefaultLogger gets the default logger.
 func GetDefaultLogger() Logger {
 	loggersRWMutex.RLock()
-	if logger, ok := allLoggers[defaultLoggerName]; ok {
-		return logger
-	}
-	loggersRWMutex.RUnlock()
+	defer loggersRWMutex.RUnlock()
+	logger := (*allLoggers)[*defaultLoggerName]
 
-	logLevel := os.Getenv("SLOGGING_DEFAULT_LOG_LEVEL")
-	if logLevel == "" {
-		logLevel = "error"
-	}
-
-	logLevels, err := GetLogLevelsForString(logLevel)
-	if err != nil {
-		panic(err)
-	}
-
-	logger := GetJSONLogger(
-		Stdout,
-		logLevels,
-	)
-
-	loggersRWMutex.Lock()
-	allLoggers[defaultLoggerName] = &logger
-	loggersRWMutex.Unlock()
-
-	return &logger
+	return logger
 }
 
 // SetDefaultLogger will use the provided identifier as the default
@@ -45,8 +29,8 @@ func GetDefaultLogger() Logger {
 func SetDefaultLogger(identifier string, logger Logger) {
 	loggersRWMutex.Lock()
 	defer loggersRWMutex.Unlock()
-	defaultLoggerName = identifier
-	allLoggers[identifier] = logger
+	defaultLoggerName = &identifier
+	(*allLoggers)[identifier] = logger
 }
 
 // SetDefaultLoggerName will use the provided identifier as the default
@@ -54,7 +38,7 @@ func SetDefaultLogger(identifier string, logger Logger) {
 func SetDefaultLoggerName(identifier string) {
 	loggersRWMutex.Lock()
 	defer loggersRWMutex.Unlock()
-	defaultLoggerName = identifier
+	defaultLoggerName = &identifier
 }
 
 // Debug uses the default logger to log to debug level.
@@ -91,4 +75,69 @@ func Info(message string) LogInstance {
 	loggersRWMutex.RLock()
 	defer loggersRWMutex.RUnlock()
 	return logger.Info(message)
+}
+
+// GetNewLogger will get a new logger with the specified format,
+// target and enabled logs then add it to the global log list.
+func GetNewLogger(
+	identifier string,
+	logFormat LogFormat,
+	logTarget LogTarget,
+	logsEnabled []LogLevel,
+) Logger {
+	switch logFormat {
+	case JSON:
+		logger := GetJSONLogger(logTarget, logsEnabled)
+		loggersRWMutex.Lock()
+		(*allLoggers)[identifier] = logger
+		loggersRWMutex.Unlock()
+		return logger
+	case ELF, Standard:
+		logger := GetELFLogger(logTarget, logsEnabled)
+		(*allLoggers)[identifier] = logger
+		return logger
+	}
+
+	panic(fmt.Errorf(
+		"no implementation for LogFormat: '%s'",
+		string(logFormat),
+	))
+}
+
+func init() {
+	once.Do(func() {
+		logLevel := strings.ToUpper(os.Getenv("SLOGGING_DEFAULT_LOG_LEVEL"))
+		if logLevel == "" {
+			logLevel = ERROR.String()
+		}
+
+		// TODO: Be more clever about this.
+		if logLevel == DEBUG.String() {
+			fmt.Println("Slogging init started.")
+		}
+
+		loggersRWMutex = new(sync.RWMutex)
+		defaultLoggerName = &initialDefaultLoggerName
+
+		loggersRWMutex.Lock()
+		newMap := make(map[string]Logger)
+		allLoggers = &newMap
+
+		logLevels, err := GetLogLevelsForString(logLevel)
+		if err != nil {
+			panic(err)
+		}
+
+		logger := GetJSONLogger(
+			Stdout,
+			logLevels,
+		)
+
+		(*allLoggers)[*defaultLoggerName] = logger
+		loggersRWMutex.Unlock()
+
+		if logLevel == DEBUG.String() {
+			fmt.Println("Slogging init end.")
+		}
+	})
 }
