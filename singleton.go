@@ -138,7 +138,7 @@ func init() {
 	once.Do(func() {
 		logLevel := strings.ToUpper(os.Getenv("SLOGGING_DEFAULT_LOG_LEVEL"))
 		if logLevel == "" {
-			logLevel = ERROR.String()
+			logLevel = WARN.String()
 		}
 
 		// TODO: Be more clever about this.
