@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 var version = 1.0
@@ -44,6 +46,11 @@ func (el *ELFLog) With(key string, val interface{}) LogInstance {
 // Send outputs the log entry to the logger and ensures proper
 // formatting.
 func (el *ELFLog) Send() {
+	err := applyGlobalExtras(el)
+	if err != nil {
+		panic(errors.WithStack(err))
+	}
+
 	formattedOutput := el.formatForOutput()
 
 	el.elfLogger.Log(

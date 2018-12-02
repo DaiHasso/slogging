@@ -9,11 +9,34 @@ import (
 
 var once sync.Once
 
+var globalExtrasMutex *sync.RWMutex
 var loggersRWMutex *sync.RWMutex
 var allLoggers *map[string]Logger
 
 var initialDefaultLoggerName = "default"
 var defaultLoggerName *string
+var globalExtras []ExtraParameter
+
+// GetGlobalExtras returns the global extras.
+func GetGlobalExtras() []ExtraParameter {
+	globalExtrasMutex.RLock()
+	defer globalExtrasMutex.RUnlock()
+	return globalExtras
+}
+
+// SetGlobalExtras sets the global extras.
+func SetGlobalExtras(extras ...ExtraParameter) {
+	globalExtrasMutex.Lock()
+	defer globalExtrasMutex.Unlock()
+	globalExtras = extras
+}
+
+// AddGlobalExtras appends the provided extras to the global extras.
+func AddGlobalExtras(extras ...ExtraParameter) {
+	globalExtrasMutex.Lock()
+	defer globalExtrasMutex.Unlock()
+	globalExtras = append(globalExtras, extras...)
+}
 
 // GetDefaultLogger gets the default logger.
 func GetDefaultLogger() Logger {
@@ -117,6 +140,7 @@ func init() {
 		}
 
 		loggersRWMutex = new(sync.RWMutex)
+		globalExtrasMutex = new(sync.RWMutex)
 		defaultLoggerName = &initialDefaultLoggerName
 
 		loggersRWMutex.Lock()

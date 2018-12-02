@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type defaultValues struct {
@@ -62,6 +64,10 @@ func (jl *JSONLog) With(key string, val interface{}) LogInstance {
 // Send outputs the log entry to the logger and ensures proper
 // formatting.
 func (jl *JSONLog) Send() {
+	err := applyGlobalExtras(jl)
+	if err != nil {
+		panic(errors.WithStack(err))
+	}
 	var marshaledOutput []byte
 	if jl.pretty {
 		marshaledOutput, _ = json.MarshalIndent(jl, "", "  ")
