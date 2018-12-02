@@ -16,4 +16,5 @@ type Logger interface {
 	GetInternalLogger() *log.Logger
 	GetPseudoWriter(LogLevel) PseudoWriter
 	GetStdLogger(LogLevel) *log.Logger
+	SetLogLevel(string) error
 }

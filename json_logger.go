@@ -83,6 +83,23 @@ func (jl *JSONLogger) GetStdLogger(logLevel LogLevel) *log.Logger {
 	)
 }
 
+// SetLogLevel will set the log level for this logger to the provided level.
+func (jl *JSONLogger) SetLogLevel(logLevel string) error {
+	logLevels, err := GetLogLevelsForString(logLevel)
+	if err != nil {
+		return err
+	}
+
+	logsEnabledMap := make(map[LogLevel]bool)
+	for _, level := range logLevels {
+		logsEnabledMap[level] = true
+	}
+
+	jl.logsEnabled = logsEnabledMap
+
+	return nil
+}
+
 // GetJSONLogger initializes and returns a new JSON logger.
 func GetJSONLogger(
 	logTarget LogTarget,

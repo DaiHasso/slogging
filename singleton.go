@@ -17,6 +17,13 @@ var initialDefaultLoggerName = "default"
 var defaultLoggerName *string
 var globalExtras []ExtraParameter
 
+func SetDefaultLoggerLogLevel(logLevel string) error {
+	loggersRWMutex.Lock()
+	defer loggersRWMutex.Unlock()
+	logger := (*allLoggers)[*defaultLoggerName]
+	return logger.SetLogLevel(logLevel)
+}
+
 // GetGlobalExtras returns the global extras.
 func GetGlobalExtras() []ExtraParameter {
 	globalExtrasMutex.RLock()

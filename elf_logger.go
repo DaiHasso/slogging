@@ -78,6 +78,23 @@ func (el *ELFLogger) GetStdLogger(logLevel LogLevel) *log.Logger {
 	)
 }
 
+// SetLogLevel will set the log level for this logger to the provided level.
+func (el *ELFLogger) SetLogLevel(logLevel string) error {
+	logLevels, err := GetLogLevelsForString(logLevel)
+	if err != nil {
+		return err
+	}
+
+	logsEnabledMap := make(map[LogLevel]bool)
+	for _, level := range logLevels {
+		logsEnabledMap[level] = true
+	}
+
+	el.logsEnabled = logsEnabledMap
+
+	return nil
+}
+
 // GetELFLogger will instantiate a new ELF logger writing to the specified log
 // target and with the specified log levels enabled.
 func GetELFLogger(
