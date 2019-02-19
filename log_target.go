@@ -1,4 +1,4 @@
-package slogging
+package logging
 
 // LogTarget is a representation of where a log should output to.
 //go:generate stringer -type=LogTarget

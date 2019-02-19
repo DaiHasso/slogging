@@ -1,4 +1,4 @@
-package slogging
+package logging
 
 // PseudoWriter is a wrapper for JSONLogger for things that
 // need a writer to output.

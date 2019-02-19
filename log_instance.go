@@ -1,4 +1,4 @@
-package slogging
+package logging
 
 import "time"
 
