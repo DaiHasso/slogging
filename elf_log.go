@@ -46,7 +46,7 @@ func (el *ELFLog) With(key string, val interface{}) LogInstance {
 // Send outputs the log entry to the logger and ensures proper
 // formatting.
 func (el *ELFLog) Send() {
-	err := applyGlobalExtras(el)
+	err := applyGlobalExtrasToLogInstance(el)
 	if err != nil {
 		panic(errors.WithStack(err))
 	}
@@ -61,7 +61,7 @@ func (el *ELFLog) Send() {
 
 func (el *ELFLog) formatForOutput() []byte {
 	fieldsList := []string{"level"}
-	fieldValuesList := []string{el.defaults.Level.String()}
+	fieldValuesList := []string{string(el.defaults.Level)}
 	for key, value := range el.contents {
 		fieldsList = append(fieldsList, key)
 		fieldValuesList = append(fieldValuesList, fmt.Sprint(value))

@@ -1,51 +1,53 @@
 package logging
 
 import (
-	"encoding/json"
-	"fmt"
-	"strings"
+    "fmt"
+    "strings"
 )
 
 // LogLevel is a representation of the logging level for a logger.
 //go:generate stringer -type=LogLevel
-type LogLevel int
+type LogLevel string
 
 // Definition of LogLevels for a logger.
 const (
-	_ LogLevel = iota
-	ERROR
-	WARN
-	INFO
-	DEBUG
+    UnsetLogLevel LogLevel = ""
+    ERROR LogLevel = "ERROR"
+    WARN LogLevel = "WARN"
+    INFO LogLevel = "INFO"
+    DEBUG LogLevel = "DEBUG"
 )
 
 // GetLogLevelsForString will get the appropriate loglevels for a string
 // log level representation.
-func GetLogLevelsForString(logLevel string) ([]LogLevel, error) {
-	var logLevels []LogLevel
-	switch strings.ToLower(logLevel) {
-	case "debug":
-		logLevels = append(logLevels, DEBUG)
-		fallthrough
-	case "info":
-		logLevels = append(logLevels, INFO)
-		fallthrough
-	case "warn":
-		logLevels = append(logLevels, WARN)
-		fallthrough
-	case "error":
-		logLevels = append(logLevels, ERROR)
-	default:
-		return nil, fmt.Errorf(
-			"couldn't find loglevel for string '%s'",
-			logLevel,
-		)
-	}
-
-	return logLevels, nil
+func GetLogLevelsForString(logLevel string) (map[LogLevel]bool, error) {
+    return logsEnabledFromLevel(LogLevel(strings.ToUpper(logLevel)))
 }
 
-// MarshalJSON correctly formats log into json format.
-func (ll LogLevel) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ll.String())
+func logsEnabledFromLevel(logLevel LogLevel) (map[LogLevel]bool, error) {
+    logLevels := make(map[LogLevel]bool)
+    switch logLevel {
+    case DEBUG:
+        logLevels[DEBUG] = true
+        fallthrough
+    case INFO:
+        logLevels[INFO] = true
+        fallthrough
+    case WARN:
+        logLevels[WARN] = true
+        fallthrough
+    case ERROR:
+        logLevels[ERROR] = true
+    default:
+        return nil, fmt.Errorf(
+            "Incorrect LogLevel: '%s'",
+            logLevel,
+        )
+    }
+
+    return logLevels, nil
+}
+
+func LogLevelFromString(logLevel string) LogLevel {
+    return LogLevel(strings.ToUpper(logLevel))
 }

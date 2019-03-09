@@ -7,48 +7,45 @@ import (
 // LoggerWithExtras wraps a logger and applies extras before starting a log
 // chain.
 type LoggerWithExtras struct {
-    Logger
+    ChainLogger
 
-    extras []ExtraParameter
+    extras []ExtrasGenerator
 }
 
 func (self LoggerWithExtras) applyExtras(logInstance LogInstance) LogInstance {
-    for i, extra := range self.extras {
-        err := extra(logInstance)
-        if err != nil {
-            panic(errors.Wrapf(err, "Error while applying extra #%d", i))
-        }
+    err := applyExtrasToLogInstance(logInstance, self.extras)
+    if err != nil {
+        panic(errors.Wrap(err, "Error while applying extra"))
     }
-
     return logInstance
 }
 
 func (self LoggerWithExtras) Debug(message string) LogInstance {
-    logInstance := self.Logger.Debug(message)
+    logInstance := self.ChainLogger.Debug(message)
     return self.applyExtras(logInstance)
 }
 
 func (self LoggerWithExtras) Warn(message string) LogInstance {
-    logInstance := self.Logger.Warn(message)
+    logInstance := self.ChainLogger.Warn(message)
     return self.applyExtras(logInstance)
 }
 
 func (self LoggerWithExtras) Error(message string) LogInstance {
-    logInstance := self.Logger.Error(message)
+    logInstance := self.ChainLogger.Error(message)
     return self.applyExtras(logInstance)
 }
 
 func (self LoggerWithExtras) Info(message string) LogInstance {
-    logInstance := self.Logger.Info(message)
+    logInstance := self.ChainLogger.Info(message)
     return self.applyExtras(logInstance)
 }
 
 // NewLoggerWithExtras wraps an existing logger adding extras to the logger.
 func NewLoggerWithExtras(
-    existing Logger, extras ...ExtraParameter,
+    existing ChainLogger, extras ...ExtrasGenerator,
 ) LoggerWithExtras {
     return LoggerWithExtras{
-        Logger: existing,
+        ChainLogger: existing,
         extras: extras,
     }
 }

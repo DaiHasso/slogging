@@ -64,7 +64,7 @@ func (jl *JSONLog) With(key string, val interface{}) LogInstance {
 // Send outputs the log entry to the logger and ensures proper
 // formatting.
 func (jl *JSONLog) Send() {
-	err := applyGlobalExtras(jl)
+	err := applyGlobalExtrasToLogInstance(jl)
 	if err != nil {
 		panic(errors.WithStack(err))
 	}

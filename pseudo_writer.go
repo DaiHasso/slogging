@@ -3,7 +3,7 @@ package logging
 // PseudoWriter is a wrapper for JSONLogger for things that
 // need a writer to output.
 type PseudoWriter struct {
-	logger   Logger
+	logger   ChainLogger
 	logLevel LogLevel
 }
 

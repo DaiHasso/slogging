@@ -17,5 +17,6 @@ func (t timestamp) MarshalJSON() ([]byte, error) {
 }
 
 func (t timestamp) String() string {
-	return t.Time.String()
+    timeBytes := t.Format("2006-01-02T15:04:05")
+	return string(timeBytes)
 }
