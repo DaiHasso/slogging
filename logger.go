@@ -374,9 +374,8 @@ func (self Logger) Close() {
     removeLogger(self.identifier)
 }
 
-// NewLogger creates a new logger basing it off the default/root logger.
-func NewLogger(
-    identifier string, options ...LoggerOption,
+func newLogger(
+    identifier string, baseLogger *Logger, options []LoggerOption,
 ) (*Logger, error) {
     if identifierExists(identifier) {
         return nil, errors.Errorf(
@@ -396,7 +395,7 @@ func NewLogger(
         }
     }
 
-    newLogger := GetRootLogger().clone()
+    newLogger := baseLogger.clone()
 
     newLogger.identifier = identifier
 
@@ -427,4 +426,18 @@ func NewLogger(
     }
 
     return newLogger, nil
+}
+
+// NewLogger creates a new logger basing it off the default/root logger.
+func NewLogger(
+    identifier string, options ...LoggerOption,
+) (*Logger, error) {
+    return newLogger(identifier, GetRootLogger(), options)
+}
+
+// CloneLogger creates a new logger basing it off the provided logger.
+func CloneLogger(
+    identifier string, baseLogger *Logger, options ...LoggerOption,
+) (*Logger, error) {
+    return newLogger(identifier, baseLogger, options)
 }

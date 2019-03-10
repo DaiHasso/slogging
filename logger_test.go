@@ -673,3 +673,49 @@ func TestLoggerGlobalExtrasFailure(t *testing.T) {
         `{"log_level":"INFO","message":"Foo","timestamp":\d+}`,
     ))
 }
+
+func TestCloneLogger(t *testing.T) {
+    g := gm.NewGomegaWithT(t)
+
+    var builder strings.Builder
+    newLogger, err := NewLogger(
+        "test" + strconv.Itoa(rand.Int()),
+        WithLogWriters(&builder),
+        WithFormat(JSON),
+        WithDefaultExtras(StaticExtras(Extras{
+            "foo": 5,
+        })),
+    )
+    g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
+
+    newLogger2, err := CloneLogger(
+        "test" + strconv.Itoa(rand.Int()),
+        newLogger,
+        WithDefaultExtras(StaticExtras(Extras{
+            "bar": 10,
+        })),
+    )
+    g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger2.Close()
+
+    newLogger2.Info("Foo")
+
+    logResult := builder.String()
+    t.Log("\n" + logResult)
+    g.Expect(builder.String()).To(gm.MatchRegexp(
+        `{"bar":10,"foo":5,"log_level":"INFO","message":"Foo",` +
+            `"timestamp":\d+}`,
+    ))
+
+    builder.Reset()
+
+    newLogger.Info("Foo")
+
+    logResult = builder.String()
+    t.Log("\n" + logResult)
+    g.Expect(builder.String()).To(gm.MatchRegexp(
+        `{"foo":5,"log_level":"INFO","message":"Foo",` +
+            `"timestamp":\d+}`,
+    ))
+}
