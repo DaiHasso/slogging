@@ -1,0 +1,4 @@
+[metadata]
+version="1.0.0"
+name="slogging"
+tags=["library", "go", "logging"]

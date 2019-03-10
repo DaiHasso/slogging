@@ -1,39 +1,15 @@
 package logging
 
 import (
-	"fmt"
-	"strings"
 )
 
-// LogFormat is a representation of where a log should output to.
-//go:generate stringer -type=LogFormat
+// LogFormat is a representation of what format a log should output.
 type LogFormat int
 
-// Definition of LogFormat for a logger.
+// Definition of all the available LogFormats known by this framework.
 const (
-	_ LogFormat = iota
-	JSON
-	ELF
-	Standard
+    UnsetFormat LogFormat = iota
+    JSON
+    Standard
+    StandardExtended
 )
-
-// GetLogFormatForString will get the appropriate LogFormat for a string
-// log format representation.
-func GetLogFormatForString(logFormatString string) (LogFormat, error) {
-	var logFormat LogFormat
-	switch strings.ToLower(logFormatString) {
-	case strings.ToLower(JSON.String()):
-		logFormat = JSON
-	case
-		strings.ToLower(ELF.String()),
-		strings.ToLower(Standard.String()):
-		logFormat = ELF
-	default:
-		return -1, fmt.Errorf(
-			"couldn't find LogFormat for string '%s'",
-			logFormatString,
-		)
-	}
-
-	return logFormat, nil
-}
