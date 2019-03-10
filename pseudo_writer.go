@@ -3,20 +3,30 @@ package logging
 // PseudoWriter is a wrapper for JSONLogger for things that
 // need a writer to output.
 type PseudoWriter struct {
-	logger   ChainLogger
+	logger   *Logger
 	logLevel LogLevel
 }
 
-func (pw PseudoWriter) Write(p []byte) (n int, err error) {
-	switch pw.logLevel {
+// Write satisfies the io.Writer interface and writes the the logger it wraps.
+func (self PseudoWriter) Write(p []byte) (n int, err error) {
+	switch self.logLevel {
 	case ERROR:
-		pw.logger.Error(string(p)).Send()
+		self.logger.Error(string(p))
 	case WARN:
-		pw.logger.Warn(string(p)).Send()
+		self.logger.Warn(string(p))
 	case INFO:
-		pw.logger.Info(string(p)).Send()
+		self.logger.Info(string(p))
 	case DEBUG:
-		pw.logger.Debug(string(p)).Send()
+		self.logger.Debug(string(p))
 	}
 	return len(p), nil
+}
+
+// NewPsuedoWriter wraps a logger with the Write functionality wich writes out
+// logs at a specified log level.
+func NewPseudoWriter(logLevel LogLevel, logger *Logger) *PseudoWriter {
+    return &PseudoWriter{
+        logger: logger,
+        logLevel: logLevel,
+    }
 }

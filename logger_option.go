@@ -2,7 +2,6 @@ package logging
 
 import (
     "io"
-    "os"
     "log"
 
     "github.com/pkg/errors"
@@ -24,8 +23,10 @@ func newLoggerConfig() *loggerConfig {
     }
 }
 
+// LoggerOption is an option used when creating a new Logger.
 type LoggerOption func(*loggerConfig) error
 
+// WithLogLevel sets this Logger's log level to the provided LogLevel.
 func WithLogLevel(logLevel LogLevel) LoggerOption {
     return func(loggerConfig *loggerConfig) error {
         logsEnabled, err := logsEnabledFromLevel(logLevel)
@@ -43,6 +44,7 @@ func WithLogLevel(logLevel LogLevel) LoggerOption {
     }
 }
 
+// WithFormat sets the new Logger's format to the provided format.
 func WithFormat(logFormat LogFormat) LoggerOption {
     return func(loggerConfig *loggerConfig) error {
         loggerConfig.logFormat = logFormat
@@ -51,23 +53,7 @@ func WithFormat(logFormat LogFormat) LoggerOption {
     }
 }
 
-func WithTarget(
-    logTarget LogTarget, otherLogTargets ...LogTarget,
-) LoggerOption {
-    return func(loggerConfig *loggerConfig) error {
-        targets := append([]LogTarget{logTarget}, otherLogTargets...)
-        for _, target := range targets {
-            if target == Stdout {
-                loggerConfig.writerLoggers[os.Stdout] = log.New(
-                    os.Stdout, "", 0,
-                )
-            }
-        }
-
-        return nil
-    }
-}
-
+// WithLogWriters sets the provided Logger's writers to the provided writers.
 func WithLogWriters(primary io.Writer, others ... io.Writer) LoggerOption {
     return func(loggerConfig *loggerConfig) error {
         for _, writer := range append([]io.Writer{primary}, others...) {
@@ -78,6 +64,8 @@ func WithLogWriters(primary io.Writer, others ... io.Writer) LoggerOption {
     }
 }
 
+// WithDefaultExtras provides one or many Extras that will be logged for every
+// log statement for this Logger.
 func WithDefaultExtras(
     extraParam ExtrasGenerator, extraParams ...ExtrasGenerator,
 ) LoggerOption {

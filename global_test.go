@@ -1,106 +1,168 @@
+/* #nosec G404 */
 package logging
 
 import (
-    "log"
+    "math/rand"
+    "os"
+    "strconv"
     "strings"
     "testing"
+    "errors"
 
     gm "github.com/onsi/gomega"
 )
 
-func TestNewLoggerJSON(t *testing.T) {
+func TestGetLogger(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
-    logger, err := NewChainLogger(
-        "test",
+    identifier := "test" + strconv.Itoa(rand.Int())
+    loggerFromGet := GetLogger(identifier)
+    g.Expect(loggerFromGet).To(gm.BeNil())
+
+    newLogger, err := NewLogger(identifier)
+    g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
+
+    loggerFromGet = GetLogger(identifier)
+    g.Expect(loggerFromGet).To(gm.BeIdenticalTo(newLogger))
+}
+
+func TestSetRootLogger(t *testing.T) {
+    g := gm.NewGomegaWithT(t)
+    var (
+        builder,
+        builder2 strings.Builder
+    )
+    rootLogger := GetRootLogger()
+    rootLogger.SetWriters(&builder)
+    defer func() {
+        rootLogger.SetWriters(os.Stdout)
+        err := SetRootLoggerExisting(initialRootLoggerName)
+        g.Expect(err).ToNot(gm.HaveOccurred())
+    }()
+
+    identifier := "test" + strconv.Itoa(rand.Int())
+    newLogger, err := NewLogger(
+        identifier,
+        WithLogWriters(&builder2),
         WithFormat(JSON),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
-    g.Expect(logger).To(gm.BeAssignableToTypeOf(&JSONLogger{}))
+    Info("Foo")
+
+    g.Expect(builder.String()).To(gm.MatchRegexp(
+        `{"log_level":"INFO","message":"Foo","timestamp":\d+}`,
+    ))
+    g.Expect(builder2.String()).To(gm.BeEmpty())
+
+    builder.Reset()
+    builder2.Reset()
+
+    err = SetRootLogger(identifier, newLogger)
+
+    Info("Bar")
+
+    g.Expect(err).ToNot(gm.HaveOccurred())
+    g.Expect(builder.String()).To(gm.BeEmpty())
+    g.Expect(builder2.String()).To(gm.MatchRegexp(
+        `{"log_level":"INFO","message":"Bar","timestamp":\d+}`,
+    ))
 }
 
-func TestNewLoggerELF(t *testing.T) {
+func TestGlobalException(t *testing.T) {
     g := gm.NewGomegaWithT(t)
-
-    logger, err := NewChainLogger(
-        "test",
-        WithFormat(ELF),
+    var (
+        builder strings.Builder
     )
-    g.Expect(err).ToNot(gm.HaveOccurred())
+    rootLogger := GetRootLogger()
+    rootLogger.SetWriters(&builder)
+    defer func() {
+        rootLogger.SetWriters(os.Stdout)
+    }()
 
-    g.Expect(logger).To(gm.BeAssignableToTypeOf(&ELFLogger{}))
+    Exception(errors.New("Test err"), "Foo")
+
+    g.Expect(builder.String()).To(gm.MatchRegexp(
+        `{"error":"Test err[^"]+","log_level":"ERROR",` +
+            `"message":"Foo","timestamp":\d+}`,
+    ))
 }
 
 func TestGlobalDebug(t *testing.T) {
     g := gm.NewGomegaWithT(t)
     var builder strings.Builder
-    err := GetDefaultLogger().SetLogLevel("DEBUG")
+    rootLogger := GetRootLogger()
+    rootLogger.SetWriters(&builder)
+    err := rootLogger.SetLogLevel(DEBUG)
     g.Expect(err).ToNot(gm.HaveOccurred())
-    defaultInternalLogger := GetDefaultLogger().GetInternalLogger()
-    GetDefaultLogger().SetInternalLogger(log.New(&builder, "", 0))
     defer func() {
-        GetDefaultLogger().SetInternalLogger(defaultInternalLogger)
+        rootLogger.SetWriters(os.Stdout)
+        _ = rootLogger.SetLogLevel(INFO)
     }()
 
-    Debug("Foo").Send()
+    Debug("Foo")
 
     g.Expect(builder.String()).To(gm.MatchRegexp(
-        `{"message":"Foo","log_level":"DEBUG","timestamp":\d+}`,
+        `{"log_level":"DEBUG","message":"Foo","timestamp":\d+}`,
     ))
 }
 
 func TestGlobalWarn(t *testing.T) {
     g := gm.NewGomegaWithT(t)
     var builder strings.Builder
-    err := GetDefaultLogger().SetLogLevel("WARN")
+    rootLogger := GetRootLogger()
+    rootLogger.SetWriters(&builder)
+    err := rootLogger.SetLogLevel(WARN)
     g.Expect(err).ToNot(gm.HaveOccurred())
-    defaultInternalLogger := GetDefaultLogger().GetInternalLogger()
-    GetDefaultLogger().SetInternalLogger(log.New(&builder, "", 0))
     defer func() {
-        GetDefaultLogger().SetInternalLogger(defaultInternalLogger)
+        rootLogger.SetWriters(os.Stdout)
+        _ = rootLogger.SetLogLevel(INFO)
     }()
 
-    Warn("Foo").Send()
+    Warn("Foo")
 
     g.Expect(builder.String()).To(gm.MatchRegexp(
-        `{"message":"Foo","log_level":"WARN","timestamp":\d+}`,
+        `{"log_level":"WARN","message":"Foo","timestamp":\d+}`,
     ))
 }
 
 func TestGlobalError(t *testing.T) {
     g := gm.NewGomegaWithT(t)
     var builder strings.Builder
-    err := GetDefaultLogger().SetLogLevel("ERROR")
+    rootLogger := GetRootLogger()
+    rootLogger.SetWriters(&builder)
+    err := rootLogger.SetLogLevel(ERROR)
     g.Expect(err).ToNot(gm.HaveOccurred())
-    defaultInternalLogger := GetDefaultLogger().GetInternalLogger()
-    GetDefaultLogger().SetInternalLogger(log.New(&builder, "", 0))
     defer func() {
-        GetDefaultLogger().SetInternalLogger(defaultInternalLogger)
+        rootLogger.SetWriters(os.Stdout)
+        _ = rootLogger.SetLogLevel(INFO)
     }()
 
-    Error("Foo").Send()
+    Error("Foo")
 
     g.Expect(builder.String()).To(gm.MatchRegexp(
-        `{"message":"Foo","log_level":"ERROR","timestamp":\d+}`,
+        `{"log_level":"ERROR","message":"Foo","timestamp":\d+}`,
     ))
 }
 
 func TestGlobalInfo(t *testing.T) {
     g := gm.NewGomegaWithT(t)
     var builder strings.Builder
-    err := GetDefaultLogger().SetLogLevel("INFO")
+    rootLogger := GetRootLogger()
+    rootLogger.SetWriters(&builder)
+    err := rootLogger.SetLogLevel(INFO)
     g.Expect(err).ToNot(gm.HaveOccurred())
-    defaultInternalLogger := GetDefaultLogger().GetInternalLogger()
-    GetDefaultLogger().SetInternalLogger(log.New(&builder, "", 0))
     defer func() {
-        GetDefaultLogger().SetInternalLogger(defaultInternalLogger)
+        rootLogger.SetWriters(os.Stdout)
+        _ = rootLogger.SetLogLevel(INFO)
     }()
 
-    Info("Foo").Send()
+    Info("Foo")
 
     g.Expect(builder.String()).To(gm.MatchRegexp(
-        `{"message":"Foo","log_level":"INFO","timestamp":\d+}`,
+        `{"log_level":"INFO","message":"Foo","timestamp":\d+}`,
     ))
 }
 
@@ -108,22 +170,23 @@ func TestSetDefaultLoggerLogLevel(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
-    defaultInternalLogger := GetDefaultLogger().GetInternalLogger()
-    GetDefaultLogger().SetInternalLogger(log.New(&builder, "", 0))
+    rootLogger := GetRootLogger()
+    rootLogger.SetWriters(&builder)
     defer func() {
-        GetDefaultLogger().SetInternalLogger(defaultInternalLogger)
+        rootLogger.SetWriters(os.Stdout)
+        _ = rootLogger.SetLogLevel(INFO)
     }()
 
-    Debug("Foo").Send()
+    Debug("Foo")
     g.Expect(builder.String()).To(gm.BeEmpty())
 
-    err := SetDefaultLoggerLogLevel("DEBUG")
+    err := rootLogger.SetLogLevel(DEBUG)
     g.Expect(err).ToNot(gm.HaveOccurred())
 
-    Debug("Foo").Send()
+    Debug("Foo")
 
     g.Expect(builder.String()).To(gm.MatchRegexp(
-        `{"message":"Foo","log_level":"DEBUG","timestamp":\d+}`,
+        `{"log_level":"DEBUG","message":"Foo","timestamp":\d+}`,
     ))
 }
 
@@ -131,14 +194,14 @@ func TestAddGlobalExtrasBasic(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
-    defaultInternalLogger := GetDefaultLogger().GetInternalLogger()
-    GetDefaultLogger().SetInternalLogger(log.New(&builder, "", 0))
-    defer func() {
-        GetDefaultLogger().SetInternalLogger(defaultInternalLogger)
-    }()
-
-    err := SetDefaultLoggerLogLevel("DEBUG")
+    rootLogger := GetRootLogger()
+    rootLogger.SetWriters(&builder)
+    err := rootLogger.SetLogLevel(DEBUG)
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer func() {
+        rootLogger.SetWriters(os.Stdout)
+        _ = rootLogger.SetLogLevel(INFO)
+    }()
 
     AddGlobalExtras(StaticExtras(Extras{
         "test": "bar",
@@ -147,10 +210,10 @@ func TestAddGlobalExtrasBasic(t *testing.T) {
         SetGlobalExtras()
     }()
 
-    Debug("Foo").Send()
+    Debug("Foo")
 
     g.Expect(builder.String()).To(gm.MatchRegexp(
-        `{"message":"Foo","log_level":"DEBUG","timestamp":\d+,"test":"bar"}`,
+        `{"log_level":"DEBUG","message":"Foo","test":"bar","timestamp":\d+}`,
     ))
 }
 
@@ -158,14 +221,14 @@ func TestAddGlobalExtrasFunc(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
-    defaultInternalLogger := GetDefaultLogger().GetInternalLogger()
-    GetDefaultLogger().SetInternalLogger(log.New(&builder, "", 0))
-    defer func() {
-        GetDefaultLogger().SetInternalLogger(defaultInternalLogger)
-    }()
-
-    err := SetDefaultLoggerLogLevel("DEBUG")
+    rootLogger := GetRootLogger()
+    rootLogger.SetWriters(&builder)
+    err := rootLogger.SetLogLevel(DEBUG)
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer func() {
+        rootLogger.SetWriters(os.Stdout)
+        _ = rootLogger.SetLogLevel(INFO)
+    }()
 
     testVal := "baz"
 
@@ -180,18 +243,20 @@ func TestAddGlobalExtrasFunc(t *testing.T) {
         SetGlobalExtras()
     }()
 
-    Debug("Foo").Send()
+    Debug("Foo")
 
     g.Expect(builder.String()).To(gm.MatchRegexp(
-        `{"message":"Foo","log_level":"DEBUG","timestamp":\d+,"test":"baz"}`,
+        `{"log_level":"DEBUG","message":"Foo","test":"baz","timestamp":\d+}`,
     ))
+
+    builder.Reset()
 
     testVal = "baz2"
 
-    Debug("Foo").Send()
+    Debug("Foo")
 
     g.Expect(builder.String()).To(gm.MatchRegexp(
-        `{"message":"Foo","log_level":"DEBUG","timestamp":\d+,"test":"baz2"}`,
+        `{"log_level":"DEBUG","message":"Foo","test":"baz2","timestamp":\d+}`,
     ))
 }
 
@@ -199,14 +264,14 @@ func TestSetGetGlobalExtras(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
-    defaultInternalLogger := GetDefaultLogger().GetInternalLogger()
-    GetDefaultLogger().SetInternalLogger(log.New(&builder, "", 0))
-    defer func() {
-        GetDefaultLogger().SetInternalLogger(defaultInternalLogger)
-    }()
-
-    err := SetDefaultLoggerLogLevel("DEBUG")
+    rootLogger := GetRootLogger()
+    rootLogger.SetWriters(&builder)
+    err := rootLogger.SetLogLevel(DEBUG)
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer func() {
+        rootLogger.SetWriters(os.Stdout)
+        _ = rootLogger.SetLogLevel(INFO)
+    }()
 
     extra := StaticExtras(Extras{
         "test": "bar",

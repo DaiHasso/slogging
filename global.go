@@ -2,6 +2,7 @@ package logging
 
 import (
     "fmt"
+    "io"
     "log"
     "os"
     "sync"
@@ -9,23 +10,21 @@ import (
     "github.com/pkg/errors"
 )
 
-var once sync.Once
+var (
+    once sync.Once
+    globalExtraGeneratorsMutex,
+    loggersRWMutex,
+    rootLoggerRWMutex *sync.RWMutex
 
-var globalExtraGeneratorsMutex *sync.RWMutex
-var loggersRWMutex *sync.RWMutex
-var allLoggers map[string]ChainLogger
+    allLoggers map[string]*Logger
 
-var initialDefaultLoggerName = "root"
-var defaultLoggerName string
-var globalExtraGenerators []ExtrasGenerator
-var DefaultLogLevelEnvVar = "SLOGGING_DEFAULT_LOG_LEVEL"
+    globalExtraGenerators []ExtrasGenerator
 
-func SetDefaultLoggerLogLevel(logLevel string) error {
-    loggersRWMutex.Lock()
-    defer loggersRWMutex.Unlock()
-    logger := allLoggers[defaultLoggerName]
-    return logger.SetLogLevel(logLevel)
-}
+    rootLoggerName string
+    initialRootLoggerName = "root"
+
+    DefaultLogLevelEnvVar = "SLOGGING_ROOT_LOG_LEVEL"
+)
 
 // GetGlobalExtras returns the global extras.
 func GetGlobalExtras() []ExtrasGenerator {
@@ -48,27 +47,42 @@ func AddGlobalExtras(extras ...ExtrasGenerator) {
     globalExtraGenerators = append(globalExtraGenerators, extras...)
 }
 
-// GetDefaultLogger gets the default logger.
-func GetDefaultLogger() ChainLogger {
+// GetLogger get an existing logger by its identifier.
+func GetLogger(identifier string) *Logger {
     loggersRWMutex.RLock()
     defer loggersRWMutex.RUnlock()
-    logger := allLoggers[defaultLoggerName]
+    return allLoggers[identifier]
+}
+
+// GetRootLogger gets the root logger.
+func GetRootLogger() *Logger {
+    loggersRWMutex.RLock()
+    rootLoggerRWMutex.RLock()
+    defer loggersRWMutex.RUnlock()
+    defer rootLoggerRWMutex.RUnlock()
+    logger := allLoggers[rootLoggerName]
 
     return logger
 }
 
-// SetDefaultLogger will use the provided identifier as the default
+// SetRootLogger will use the provided identifier as the default
 // logger for future log calls.
-func SetDefaultLogger(identifier string, logger ChainLogger) {
-    loggersRWMutex.Lock()
-    defer loggersRWMutex.Unlock()
-    defaultLoggerName = identifier
-    allLoggers[identifier] = logger
+func SetRootLogger(identifier string, logger *Logger) error {
+    err := addLogger(identifier, logger)
+    if err != nil {
+        return errors.Wrap(err, "Error while trying to set root logger")
+    }
+
+    rootLoggerRWMutex.Lock()
+    defer rootLoggerRWMutex.Unlock()
+    rootLoggerName = identifier
+
+    return nil
 }
 
-// SetDefaultLoggerExisting will use the provided identifier as the default
+// SetRootLoggerExisting will use the provided identifier as the default
 // logger for future log calls.
-func SetDefaultLoggerExisting(identifier string) error {
+func SetRootLoggerExisting(identifier string) error {
     loggersRWMutex.Lock()
     defer loggersRWMutex.Unlock()
     if _, ok := allLoggers[identifier]; !ok {
@@ -78,135 +92,92 @@ func SetDefaultLoggerExisting(identifier string) error {
         )
     }
 
-    defaultLoggerName = identifier
+    rootLoggerRWMutex.Lock()
+    defer rootLoggerRWMutex.Unlock()
+    rootLoggerName = identifier
+
     return nil
 }
 
-// Debug uses the default logger to log to debug level.
-func Debug(message string) LogInstance {
-    logger := GetDefaultLogger()
+// Debug uses the root logger to log to debug level.
+func Debug(message string, extras ...Extras) {
+    logger := GetRootLogger()
 
     loggersRWMutex.RLock()
     defer loggersRWMutex.RUnlock()
-    return logger.Debug(message)
+
+    logger.Debug(message, extras...)
 }
 
-// Warn uses the default logger to log to warn level.
-func Warn(message string) LogInstance {
-    logger := GetDefaultLogger()
+// Warn uses the root logger to log to warn level.
+func Warn(message string, extras ...Extras) {
+    logger := GetRootLogger()
 
     loggersRWMutex.RLock()
     defer loggersRWMutex.RUnlock()
-    return logger.Warn(message)
+
+    logger.Warn(message, extras...)
 }
 
-// Error uses the default logger to log to error level.
-func Error(message string) LogInstance {
-    logger := GetDefaultLogger()
+// Error uses the root logger to log to error level.
+func Error(message string, extras ...Extras) {
+    logger := GetRootLogger()
 
     loggersRWMutex.RLock()
     defer loggersRWMutex.RUnlock()
-    return logger.Error(message)
+
+    logger.Error(message, extras...)
 }
 
-// Info uses the default logger to log to info level.
-func Info(message string) LogInstance {
-    logger := GetDefaultLogger()
+// Info uses the root logger to log to info level.
+func Info(message string, extras ...Extras) {
+    logger := GetRootLogger()
 
     loggersRWMutex.RLock()
     defer loggersRWMutex.RUnlock()
-    return logger.Info(message)
+
+    logger.Info(message, extras...)
 }
 
-func loggerFromFormat(logFormat LogFormat) ChainLogger {
-    switch logFormat {
-    case JSON:
-        logger := new(JSONLogger)
-        return logger
-    case ELF, Standard:
-        logger := new(ELFLogger)
-        return logger
-    }
+// Exception uses the root logger to log an error at error level.
+func Exception(err error, message string, extras ...Extras) {
+    logger := GetRootLogger()
 
-    panic(fmt.Errorf(
-        "no implementation for LogFormat: '%s'",
-        string(logFormat),
-    ))
+    loggersRWMutex.RLock()
+    defer loggersRWMutex.RUnlock()
+
+    logger.Exception(err, message, extras...)
 }
 
-// NewChainLogger creates a new chain-style logger basing it off the
-// default/root logger.
-func NewChainLogger(
-    identifier string, options ...LoggerOption,
-) (ChainLogger, error) {
-    loggerConfig := newLoggerConfig()
-    for i, opt := range(options) {
-        err := opt(loggerConfig)
-        if err != nil {
-            return nil, errors.Wrapf(
-                err, "Error while processing option #%d", i,
-            )
-        }
+func addLogger(identifier string, logger *Logger) error {
+    if identifier == "" {
+        return errors.New("Identifier cannot be empty")
     }
-
-    logger := loggerFromFormat(loggerConfig.logFormat)
-
-    GetDefaultLogger().CloneTo(logger)
-
-    if len(loggerConfig.writerLoggers) != 0 {
-        var first *log.Logger
-        var rest []*log.Logger
-        for _, logger := range loggerConfig.writerLoggers {
-            if first == nil {
-                first = logger
-            } else {
-                rest = append(rest, logger)
-            }
-        }
-        logger.SetGoLoggers(first, rest...)
-    }
-
-    if loggerConfig.logsEnabled != nil {
-        logger.SetLogsEnabled(loggerConfig.logsEnabled)
-    }
-
-
     loggersRWMutex.Lock()
-    allLoggers[identifier] = logger
-    loggersRWMutex.Unlock()
-
-    return logger, nil
-}
-
-// GetNewLogger will get a new logger with the specified format,
-// target and enabled logs then add it to the global log list.
-func GetNewLogger(
-    identifier string,
-    logFormat LogFormat,
-    logTarget LogTarget,
-    logsEnabled []LogLevel,
-) ChainLogger {
-    switch logFormat {
-    case JSON:
-        logger := GetJSONLogger(logTarget, logsEnabled)
-        loggersRWMutex.Lock()
+    defer loggersRWMutex.Unlock()
+    if existing, ok := allLoggers[identifier]; ok {
+        if existing != logger {
+            return errors.New("Identifier already used for a different logger")
+        }
+        // No action needed if it's already in the map.
+    } else {
         allLoggers[identifier] = logger
-        loggersRWMutex.Unlock()
-        return logger
-    case ELF, Standard:
-        logger := GetELFLogger(logTarget, logsEnabled)
-        allLoggers[identifier] = logger
-        return logger
     }
 
-    panic(fmt.Errorf(
-        "no implementation for LogFormat: '%s'",
-        string(logFormat),
-    ))
+    return nil
 }
 
-func WithExtras(existing ChainLogger, extras ...ExtrasGenerator) ChainLogger {
-    return NewLoggerWithExtras(existing, extras...)
+func removeLogger(identifier string) {
+    loggersRWMutex.Lock()
+    defer loggersRWMutex.Unlock()
+    delete(allLoggers, identifier)
+}
+
+func identifierExists(identifier string) bool {
+    loggersRWMutex.RLock()
+    defer loggersRWMutex.RUnlock()
+    _, ok := allLoggers[identifier]
+    return ok
 }
 
 func init() {
@@ -216,36 +187,39 @@ func init() {
             logLevel = LogLevelFromString(logLevelString)
         }
 
-        // TODO: Be more clever about this.
+        // TODO: Be more clever about this?
         if logLevel == DEBUG {
             fmt.Println("Slogging init started.")
         }
 
         loggersRWMutex = new(sync.RWMutex)
         globalExtraGeneratorsMutex = new(sync.RWMutex)
-        defaultLoggerName = initialDefaultLoggerName
+        rootLoggerRWMutex = new(sync.RWMutex)
+
+        rootLoggerRWMutex.Lock()
+        rootLoggerName = initialRootLoggerName
+
+        logLevelsEnabled, err := logsEnabledFromLevel(logLevel)
+        if err != nil {
+            rootLoggerRWMutex.Unlock()
+            panic(err)
+        }
+        rootLogger := &Logger{
+            identifier: rootLoggerName,
+            format: JSON,
+            writerLoggers: map[io.Writer]*log.Logger{
+                os.Stdout: log.New(os.Stdout, "", 0),
+            },
+            logLevelsEnabled: logLevelsEnabled,
+        }
 
         loggersRWMutex.Lock()
-        newMap := make(map[string]ChainLogger)
-        allLoggers = newMap
-
-        logLevels, err := logsEnabledFromLevel(logLevel)
-        if err != nil {
-            logLevels, _ = logsEnabledFromLevel(INFO)
+        allLoggers = map[string]*Logger{
+            rootLoggerName: rootLogger,
         }
-
-        // TODO: Just use the new loggers by default
-        var levelSlice []LogLevel
-        for level, _ := range logLevels {
-            levelSlice = append(levelSlice, level)
-        }
-        logger := GetJSONLogger(
-            Stdout, levelSlice,
-        )
-
-        allLoggers[defaultLoggerName] = logger
+        rootLoggerRWMutex.Unlock()
         loggersRWMutex.Unlock()
 
-        logger.Debug("Slogging init end.").Send()
+        rootLogger.Debug("Slogging init end.")
     })
 }

@@ -1,6 +1,9 @@
+/* #nosec G404 */
 package logging
 
 import (
+    "math/rand"
+    "strconv"
     "strings"
     "testing"
     "errors"
@@ -8,16 +11,17 @@ import (
     gm "github.com/onsi/gomega"
 )
 
-func TestInstantLoggerBasic(t *testing.T) {
+func TestLoggerBasic(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Info("Foo")
 
@@ -26,16 +30,48 @@ func TestInstantLoggerBasic(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerError(t *testing.T) {
+func TestLoggerIdentifier(t *testing.T) {
+    g := gm.NewGomegaWithT(t)
+
+    identifier := "test" + strconv.Itoa(rand.Int())
+    newLogger, err := NewLogger(identifier)
+    g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
+
+    g.Expect(newLogger.Identifier()).To(gm.BeIdenticalTo(identifier))
+}
+
+func TestLoggerDuplicateName(t *testing.T) {
+    g := gm.NewGomegaWithT(t)
+
+    newLogger, err := NewLogger("test_dupe")
+    g.Expect(err).ToNot(gm.HaveOccurred())
+
+    newLogger2, err := NewLogger("test_dupe")
+    g.Expect(err).To(gm.MatchError(
+        "Can't create new logger with identifier 'test_dupe'; identifier " +
+            "already exists",
+    ))
+
+    newLogger.Close()
+
+    newLogger2, err = NewLogger("test_dupe")
+    g.Expect(err).ToNot(gm.HaveOccurred())
+
+    newLogger2.Close()
+}
+
+func TestLoggerError(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Error("Foo")
 
@@ -44,16 +80,17 @@ func TestInstantLoggerError(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerWarn(t *testing.T) {
+func TestLoggerWarn(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Warn("Foo")
 
@@ -62,15 +99,17 @@ func TestInstantLoggerWarn(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerStandard(t *testing.T) {
+func TestLoggerStandardExtended(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
+        WithFormat(StandardExtended),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Info("Foo")
 
@@ -82,16 +121,17 @@ func TestInstantLoggerStandard(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerStandardLong(t *testing.T) {
+func TestLoggerStandard(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
-        WithFormat(StandardLong),
+        WithFormat(Standard),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Info("Foo")
 
@@ -102,15 +142,17 @@ func TestInstantLoggerStandardLong(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerStandardExtras(t *testing.T) {
+func TestLoggerStandardExtendedExtras(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
+        WithFormat(StandardExtended),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Info("Foo", Extras{
         "test": "baz",
@@ -124,16 +166,17 @@ func TestInstantLoggerStandardExtras(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerStandardLongExtras(t *testing.T) {
+func TestLoggerStandardExtras(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
-        WithFormat(StandardLong),
+        WithFormat(Standard),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Info("Foo", Extras{
         "test": "baz",
@@ -146,16 +189,47 @@ func TestInstantLoggerStandardLongExtras(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerJSONExtras(t *testing.T) {
+func TestLoggerStandardExtrasStruct(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
+        WithLogWriters(&builder),
+        WithFormat(Standard),
+    )
+    g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
+
+    testStruct := struct{
+        Foo string
+        bar int
+    }{
+        Foo: "baz",
+        bar: 6,
+    }
+    newLogger.Info("Foo", Extras{
+        "test": testStruct,
+    })
+
+    logResult := builder.String()
+    t.Log("\n" + logResult)
+    g.Expect(logResult).To(gm.MatchRegexp(
+        `[^\s]+ INFO test="{baz 6}" Foo`,
+    ))
+}
+
+func TestLoggerJSONExtras(t *testing.T) {
+    g := gm.NewGomegaWithT(t)
+
+    var builder strings.Builder
+    newLogger, err := NewLogger(
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Info("Foo", Extras{
         "test_log": "baz",
@@ -169,16 +243,17 @@ func TestInstantLoggerJSONExtras(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerJSONExtraFunc(t *testing.T) {
+func TestLoggerJSONExtraFunc(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Info("Foo", Extra("test_log", "baz"))
 
@@ -190,16 +265,17 @@ func TestInstantLoggerJSONExtraFunc(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerJSONExtraFuncAndStruct(t *testing.T) {
+func TestLoggerJSONExtraFuncAndStruct(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Info(
         "Foo", Extra("test_log", "baz"), Extras{
@@ -215,33 +291,35 @@ func TestInstantLoggerJSONExtraFuncAndStruct(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerLogLevel(t *testing.T) {
+func TestLoggerLogLevel(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
         WithLogLevel(INFO),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Debug("Foo")
 
     g.Expect(builder.String()).To(gm.BeEmpty())
 }
 
-func TestInstantLoggerException(t *testing.T) {
+func TestLoggerException(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Exception(errors.New("test err!"), "Oh noes, an error.")
 
@@ -255,7 +333,7 @@ func TestInstantLoggerException(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerGlobalExtras(t *testing.T) {
+func TestLoggerGlobalExtras(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     AddGlobalExtras(StaticExtras(Extras{
@@ -265,11 +343,12 @@ func TestInstantLoggerGlobalExtras(t *testing.T) {
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Info("Foo")
 
@@ -278,14 +357,14 @@ func TestInstantLoggerGlobalExtras(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerDefaultExtras(t *testing.T) {
+func TestLoggerDefaultExtras(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     val := "bar"
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
         WithDefaultExtras(StaticExtras(Extras{
@@ -293,6 +372,7 @@ func TestInstantLoggerDefaultExtras(t *testing.T) {
         })),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Info("Foo")
 
@@ -301,14 +381,14 @@ func TestInstantLoggerDefaultExtras(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerDefaultExtrasFuncs(t *testing.T) {
+func TestLoggerDefaultExtrasFuncs(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     val := "bar"
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
         WithDefaultExtras(FunctionalExtras(ExtrasFuncs{
@@ -318,6 +398,7 @@ func TestInstantLoggerDefaultExtrasFuncs(t *testing.T) {
         })),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Info("Foo")
     g.Expect(builder.String()).To(gm.MatchRegexp(
@@ -332,7 +413,7 @@ func TestInstantLoggerDefaultExtrasFuncs(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerAddWriter(t *testing.T) {
+func TestLoggerAddWriter(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var (
@@ -340,11 +421,12 @@ func TestInstantLoggerAddWriter(t *testing.T) {
         builder2 strings.Builder
     )
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
 
     newLogger.Info("Foo")
@@ -367,17 +449,19 @@ func TestInstantLoggerAddWriter(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerSetFormat(t *testing.T) {
+func TestLoggerSetFormat(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var (
         builder strings.Builder
     )
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
+        WithFormat(StandardExtended),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
 
     newLogger.Info("Foo")
@@ -396,16 +480,18 @@ func TestInstantLoggerSetFormat(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerAddDefaultExtras(t *testing.T) {
+func TestLoggerAddDefaultExtras(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
+
     newLogger.Info("Foo")
     g.Expect(builder.String()).To(gm.MatchRegexp(
         `{"log_level":"INFO","message":"Foo","timestamp":\d+}`,
@@ -423,12 +509,12 @@ func TestInstantLoggerAddDefaultExtras(t *testing.T) {
     ))
 }
 
-func TestInstantLoggerSetDefaultExtras(t *testing.T) {
+func TestLoggerSetDefaultExtras(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var builder strings.Builder
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
         WithDefaultExtras(StaticExtras(Extras{
@@ -436,6 +522,7 @@ func TestInstantLoggerSetDefaultExtras(t *testing.T) {
         })),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
     newLogger.Info("Foo")
 
@@ -458,7 +545,7 @@ func TestInstantLoggerSetDefaultExtras(t *testing.T) {
 }
 
 
-func TestInstantLoggerRemoveWriter(t *testing.T) {
+func TestLoggerRemoveWriter(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var (
@@ -466,11 +553,12 @@ func TestInstantLoggerRemoveWriter(t *testing.T) {
         builder2 strings.Builder
     )
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
 
     newLogger.AddWriters(&builder2)
@@ -495,7 +583,7 @@ func TestInstantLoggerRemoveWriter(t *testing.T) {
     g.Expect(builder2.String()).To(gm.BeEmpty())
 }
 
-func TestInstantLoggerSetWriters(t *testing.T) {
+func TestLoggerSetWriters(t *testing.T) {
     g := gm.NewGomegaWithT(t)
 
     var (
@@ -503,11 +591,12 @@ func TestInstantLoggerSetWriters(t *testing.T) {
         builder2 strings.Builder
     )
     newLogger, err := NewLogger(
-        "test",
+        "test" + strconv.Itoa(rand.Int()),
         WithLogWriters(&builder),
         WithFormat(JSON),
     )
     g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
 
 
 
@@ -526,5 +615,61 @@ func TestInstantLoggerSetWriters(t *testing.T) {
     g.Expect(builder.String()).To(gm.BeEmpty())
     g.Expect(builder2.String()).To(gm.MatchRegexp(
         `{"log_level":"INFO","message":"Bar","timestamp":\d+}`,
+    ))
+}
+
+func TestLoggerDefaultExtrasFailure(t *testing.T) {
+    g := gm.NewGomegaWithT(t)
+
+    var builder strings.Builder
+    newLogger, err := NewLogger(
+        "test" + strconv.Itoa(rand.Int()),
+        WithLogWriters(&builder),
+        WithFormat(JSON),
+        WithDefaultExtras(FunctionalExtras(ExtrasFuncs{
+            "foo": func() (interface{}, error) {
+                return nil, errors.New("Test extras error.")
+            },
+        })),
+    )
+    g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
+
+    newLogger.Info("Foo")
+
+    g.Expect(builder.String()).To(gm.MatchRegexp(
+        `{"error":"Test extras error.[^"]+","log_level":"ERROR",` +
+            `"message":"Error while running logger instance extras.",` +
+            `"timestamp":\d+}\n` +
+        `{"log_level":"INFO","message":"Foo","timestamp":\d+}`,
+    ))
+}
+
+func TestLoggerGlobalExtrasFailure(t *testing.T) {
+    g := gm.NewGomegaWithT(t)
+
+    AddGlobalExtras(FunctionalExtras(ExtrasFuncs{
+        "foo": func() (interface{}, error) {
+            return nil, errors.New("Test extras error.")
+        },
+    }))
+    defer SetGlobalExtras()
+
+    var builder strings.Builder
+    newLogger, err := NewLogger(
+        "test" + strconv.Itoa(rand.Int()),
+        WithLogWriters(&builder),
+        WithFormat(JSON),
+    )
+    g.Expect(err).ToNot(gm.HaveOccurred())
+    defer newLogger.Close()
+
+    newLogger.Info("Foo")
+
+    g.Expect(builder.String()).To(gm.MatchRegexp(
+        `{"error":"Test extras error.[^"]+","log_level":"ERROR",` +
+            `"message":"Error while running global logger extras.",` +
+            `"timestamp":\d+}\n` +
+        `{"log_level":"INFO","message":"Foo","timestamp":\d+}`,
     ))
 }
