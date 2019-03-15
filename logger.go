@@ -73,11 +73,10 @@ func formatStandardBodyExtended(bodyMap map[string]interface{}) []byte {
     var (
         keys,
         values []string
-    )
-
-    var (
         firstKeys,
-        firstValues [3]string
+        firstValues [2]string
+        lastKeys,
+        lastValues [1]string
     )
 
     for key, value := range bodyMap {
@@ -96,8 +95,8 @@ func formatStandardBodyExtended(bodyMap map[string]interface{}) []byte {
 
         // TODO: Maybe this logic goes somewhere else?
         if key == "message" {
-            firstKeys[2] = finalKey
-            firstValues[2] = finalValue
+            lastKeys[0] = finalKey
+            lastValues[0] = finalValue
         } else if key == "log_level" {
             firstKeys[1] = finalKey
             firstValues[1] = finalValue

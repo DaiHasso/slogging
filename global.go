@@ -23,7 +23,12 @@ var (
     rootLoggerName string
     initialRootLoggerName = "root"
 
-    DefaultLogLevelEnvVar = "SLOGGING_ROOT_LOG_LEVEL"
+    SloggingEnvVarPrefix = "SLOGGING"
+    prefixEnvVar = func(s string) string {
+        return fmt.Sprintf("%s_%s", SloggingEnvVarPrefix, s)
+    }
+    RootLoggerLevelEnvVar = prefixEnvVar("ROOT_LOGGER_LEVEL")
+    RootLoggerFormatEnvVar = prefixEnvVar("ROOT_LOGGER_FORMAT")
 )
 
 // GetGlobalExtras returns the global extras.
@@ -183,13 +188,36 @@ func identifierExists(identifier string) bool {
 func init() {
     once.Do(func() {
         logLevel := INFO
-        if logLevelString, ok := os.LookupEnv(DefaultLogLevelEnvVar); ok {
+        if logLevelString, ok := os.LookupEnv(RootLoggerLevelEnvVar); ok {
             logLevel = LogLevelFromString(logLevelString)
+        }
+
+        tempLogger := log.New(os.Stdout, "Slogging: ", 0)
+        tempDebugLog := func(log string) {
+            if logLevel == DEBUG {
+                tempLogger.Println(log)
+            }
         }
 
         // TODO: Be more clever about this?
         if logLevel == DEBUG {
-            fmt.Println("Slogging init started.")
+            tempDebugLog("Init started.")
+        }
+
+
+        format := JSON
+        if formatString, ok := os.LookupEnv(RootLoggerFormatEnvVar); ok {
+            envFormat := FormatFromString(formatString)
+            if envFormat == UnknownFormat {
+                tempDebugLog(fmt.Sprintf(
+                    "Found value for '%s' but it's value '%s' was not an " +
+                        "understood format.",
+                    RootLoggerFormatEnvVar,
+                    formatString,
+                ))
+            } else {
+                format = envFormat
+            }
         }
 
         loggersRWMutex = new(sync.RWMutex)
@@ -206,7 +234,7 @@ func init() {
         }
         rootLogger := &Logger{
             identifier: rootLoggerName,
-            format: JSON,
+            format: format,
             writerLoggers: map[io.Writer]*log.Logger{
                 os.Stdout: log.New(os.Stdout, "", 0),
             },
