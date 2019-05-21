@@ -16,6 +16,7 @@ const (
     StandardExtended
 )
 
+// FormatFromString takes a string and returns a format for it.
 func FormatFromString(format string) LogFormat {
     switch strings.ToLower(format) {
     case "json":

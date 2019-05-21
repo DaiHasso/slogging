@@ -39,6 +39,19 @@ func padStringRight(str, pad string, count int) string {
     return result
 }
 
+func stringify(in interface{}) (string, bool) {
+    switch val := in.(type) {
+    case ([]byte):
+        if StringifyByteArrays {
+            return string(val), true
+        }
+    case error:
+        return fmt.Sprintf("%#+v", val), true
+    }
+
+    return "", false
+}
+
 func formatStandardBody(bodyMap map[string]interface{}) []byte {
     var (
         firstParts [2]string
@@ -47,7 +60,12 @@ func formatStandardBody(bodyMap map[string]interface{}) []byte {
     )
 
     for key, value := range bodyMap {
-        valueString := fmt.Sprint(value)
+        var valueString string
+        if stringVal, ok := stringify(value); ok {
+            valueString = stringVal
+        } else {
+            valueString = fmt.Sprint(value)
+        }
 
         // TODO: Maybe this logic goes somewhere else?
         if key == "message" {
@@ -67,6 +85,20 @@ func formatStandardBody(bodyMap map[string]interface{}) []byte {
     parts = append(firstParts[:], append(parts, lastPart)...)
     logLine := strings.Join(parts, " ")
     return []byte(logLine)
+}
+
+func formatJsonBody(bodyMap map[string]interface{}) ([]byte, error) {
+    for k, v := range bodyMap {
+        if stringVal, ok := stringify(v); ok {
+            bodyMap[k] = stringVal
+        }
+    }
+
+    bodyBytes, err := json.Marshal(bodyMap)
+    if err != nil {
+        return nil, err
+    }
+    return bodyBytes, nil
 }
 
 func formatStandardBodyExtended(bodyMap map[string]interface{}) []byte {
@@ -153,7 +185,7 @@ func (self Logger) formatMessage(
 ) []byte {
     switch self.format {
     case JSON:
-        bodyBytes, err := json.Marshal(logBody)
+        bodyBytes, err := formatJsonBody(logBody)
         if err == nil {
             return bodyBytes
         }

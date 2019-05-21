@@ -29,6 +29,7 @@ var (
     }
     RootLoggerLevelEnvVar = prefixEnvVar("ROOT_LOGGER_LEVEL")
     RootLoggerFormatEnvVar = prefixEnvVar("ROOT_LOGGER_FORMAT")
+    StringifyByteArrays = true
 )
 
 // GetGlobalExtras returns the global extras.
