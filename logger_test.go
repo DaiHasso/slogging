@@ -161,8 +161,8 @@ func TestLoggerStandardExtendedExtras(t *testing.T) {
     logResult := builder.String()
     t.Log("\n" + logResult)
     g.Expect(logResult).To(gm.MatchRegexp(
-        `^timestamp\s* \| log_level\s* \| message\s* \| test\s*\n` +
-            `[^|]+ \| INFO\s* \| Foo\s* \| baz\s*$`,
+        `^timestamp\s* \| log_level\s* \| test\s* \| message\s*\n` +
+            `[^|]+ \| INFO\s* \| baz\s* \| Foo\s*$`,
     ))
 }
 

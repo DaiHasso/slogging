@@ -109,8 +109,8 @@ func formatStandardBodyExtended(bodyMap map[string]interface{}) []byte {
         }
     }
 
-    keys = append(firstKeys[:], keys...)
-    values = append(firstValues[:], values...)
+    keys = append(append(firstKeys[:], keys...), lastKeys[:]...)
+    values = append(append(firstValues[:], values...), lastValues[:]...)
 
     headerString := strings.Join(keys, " | ")
     valuesString := strings.Join(values, " | ")
