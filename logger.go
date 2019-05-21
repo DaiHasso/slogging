@@ -231,6 +231,12 @@ func (self Logger) internalException(err error, message string) {
 func (self Logger) logToLevel(
     level LogLevel, message string, extras []Extras,
 ) {
+    if !self.levelEnabled(level) {
+        // NOTE: It's definitely more efficient if we short-circuit here but is
+        //       it proper?
+        return
+    }
+
     allExtras := extras
     extraGenerators, err := self.applyInstanceExtras()
     allExtras = append(allExtras, extraGenerators...)
